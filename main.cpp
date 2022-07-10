@@ -228,7 +228,7 @@ void execScript(HANDLE processHld) {
 	symbols.SetCleaner(deleteNode);
 
 	RedBlackBST<char *, unsigned int> globalLabels(strCmp);
-	symbols.SetCleaner(deleteNode);
+	globalLabels.SetCleaner(deleteNode);
 
 	
 	while (true) {
@@ -299,7 +299,6 @@ void execScript(HANDLE processHld) {
 						newLabel[0] = '<';
 						newLabel[newLableLength + 1] = '>';
 						newLabel[newLableLength + 2] = 0;
-						// tood: alocate new memory
 						symbols.Put(newLabel, iAllocatedMem);
 						continue;
 					}
