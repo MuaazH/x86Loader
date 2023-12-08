@@ -1,8 +1,10 @@
 #include <windows.h>
 #include <iostream>
-#include "../mlib/system.h"
 #include "../x86assm32/x86_assm.h"
 #include <RedBlackBST.h>
+#include <io.h>
+#include <memory.h>
+#include <c_strings.h>
 
 using namespace std;
 
