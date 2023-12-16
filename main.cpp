@@ -188,6 +188,32 @@ void replaceLabels(char *line, char *out, unsigned int outSize, RBNode<char *, u
 	replaceLabels(line, out, outSize, pSymbols->m_pLeft);
 }
 
+unsigned int parseHexByte(char *str) {
+	int mem = 0;
+	for(int i = 0; i < 2; i++)
+	{
+		char c = str[i];
+		if ('0' <= str[i] && str[i] <= '9') {
+			mem *= 16;
+			mem += str[i] - '0';
+			continue;
+		} else {
+			c |= 0x20;
+			if ('a' <= c && c <= 'z') {
+				c += 10 - 'a';
+				mem *= 16;
+				mem += c;
+				continue;
+			}
+		}
+		return -1;
+	}
+	if (str[2] <= ' ') {
+		return mem;
+	}
+	return -1;
+}
+
 unsigned int parseHexMemAddress(char *str) {
 	int mem = 0;
 	for(int i = 0; i < 8; i++)
@@ -310,6 +336,41 @@ void execScript(HANDLE processHld) {
 					cout << "Script Execution Failed: new syntax is 'new <label> <size>'" << endl;
 					return;
 				}
+			} else if (startsWith(fixedLine, "set ")) {
+				int memoryLocation = parseHexMemAddress(&fixedLine[4]);
+				if (assmCodeMemory) {
+					char *setLine = &fixedLine[13];
+					if (startsWith(setLine, "bytes ")) {
+						setLine += 6;
+						char bytes[8];
+						int count = 0;
+						while (*setLine) {
+							if (*setLine == '\t' || *setLine == ' ') {
+								setLine++;
+								continue;
+							}
+							int b = parseHexByte(setLine);
+							if (b < 0) {
+								count = 0; // invalidate everything and return to zero to prevent writing anything to process memory
+								break;
+							}
+							setLine += 2;
+							bytes[count] = (char) b;
+							count++;
+						}
+						if (count > 0) {
+							cout << "Writing Value To Memory" << endl;
+							SIZE_T bytesWritten = 0;
+							if (!WriteProcessMemory(processHld, (void *) memoryLocation, (void *) bytes, count, &bytesWritten) || (int) bytesWritten != count) {
+								cout << "Failed To Write To Memory (error " << GetLastError() << ")" << endl;
+								return;
+							}
+							continue;
+						}
+					}
+				}
+				cout << "Script Execution Failed: set Syntax 'set <address in hex | label surrounded by <> marks > bytes <byte 1 in hex> [byte 2 in hex] ... [byte 8 in hex]'" << endl;
+				return;
 			} else if (startsWith(fixedLine, "asm ")) {
 				assmCodeMemory = parseHexMemAddress(&fixedLine[4]);
 				if (assmCodeMemory) {
@@ -317,10 +378,9 @@ void execScript(HANDLE processHld) {
 					assmCodeLength = 0;
 					assmStartFound = false;
 					continue;
-				} else {
-					cout << "Script Execution Failed: asm Syntax 'asm <address in hex | label surrounded by <> marks >'" << endl;
-					return;
 				}
+				cout << "Script Execution Failed: asm Syntax 'asm <address in hex | label surrounded by <> marks>'" << endl;
+				return;
 			}
 		}
 		cout << "Script Execution Failed: Invalid line '" << line << "'" << endl;
